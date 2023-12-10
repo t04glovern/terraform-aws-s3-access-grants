@@ -1,57 +1,23 @@
 # AWS S3 Access Grants
 
-| Department         | Accessible S3 Resources                                                          | Access Type    |
-|--------------------|----------------------------------------------------------------------------------|----------------|
-| Marketing          | `s3://shopfast-data/products/`<br>`s3://shopfast-data/feedback/`                 | Read<br>Read   |
-| Sales              | `s3://shopfast-data/transactions/`<br>`s3://shopfast-data/users/`                | Read/Write<br>Read/Write |
-| Customer Support   | `s3://shopfast-data/users/`<br>`s3://shopfast-data/feedback/`                    | Read<br>Read/Write  |
-| Product Management | `s3://shopfast-data/products/`<br>`s3://shopfast-internal/leads/`                | Read/Write<br>Read  |
-| HR                 | `s3://shopfast-internal/employee-records/`<br>`s3://shopfast-internal/benefits/` | Read/Write<br>Read/Write |
+| Department         | Accessible S3 Resources                  | Access Type |
+|--------------------|------------------------------------------|-------------|
+| Marketing          | s3://shopfast-data/products/             | Read        |
+|                    | s3://shopfast-data/feedback/             | Read        |
+| Sales              | s3://shopfast-data/transactions/         | Read/Write  |
+|                    | s3://shopfast-data/users/                | Read/Write  |
+| Customer Support   | s3://shopfast-data/users/                | Read        |
+|                    | s3://shopfast-data/feedback/             | Read/Write  |
+| Product Management | s3://shopfast-data/products/             | Read/Write  |
+|                    | s3://shopfast-internal/leads/            | Read        |
+| HR                 | s3://shopfast-internal/employee-records/ | Read/Write  |
+|                    | s3://shopfast-internal/benefits/         | Read/Write  |
 
-```mermaid
-graph TD
-    MK[Marketing] -- Read --> B1P1[products/]
-    MK -- Read --> B1P2[feedback/]
-    SL[Sales] -- Read/Write --> B1P3[transactions/]
-    SL -- Read/Write --> B1P5[users/]
-    CS[Customer Support] -- Read --> B1P5[users/]
-    CS -- Read/Write --> B1P2
-    PM[Product Management] -- Read/Write --> B1P1[products/]
-    PM -- Read --> B2P1[leads/]
-    HR[Human Resources] -- Read/Write --> B2P2[employee-records/]
-    HR -- Read/Write --> B2P3[benefits/]
-
-    subgraph "shopfast-data"
-        B1P1
-        B1P2
-        B1P3
-        B1P5
-    end
-
-    subgraph "shopfast-internal"
-        B2P1
-        B2P2
-        B2P3
-    end
-
-    subgraph "Departments"
-        MK
-        SL
-        CS
-        PM
-        HR
-    end
-```
+![Access Pattern Plan](./mermaid-diagram.png)
 
 ## Deploy Terraform
 
-Update backend.tf with your terraform backend configuration
-
-Create a terraform.tfvars file with the following content, where `aws_sso_instance_id` is the ID of your AWS SSO instance.
-
-```terraform
-aws_sso_instance_id = "ssoins-xxxxxxxxxxxx"
-```
+Update [backend.tf](./backend.tf) with your terraform backend configuration
 
 Run the following commands to deploy the terraform stack
 

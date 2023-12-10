@@ -94,9 +94,7 @@ resource "aws_iam_role_policy_attachment" "department_policy_attachment" {
   policy_arn = aws_iam_policy.department_policy.arn
 }
 
-resource "aws_s3control_access_grants_instance" "shopfast_instance" {
-  identity_center_arn = "arn:aws:sso:::instance/${var.aws_sso_instance_id}"
-}
+resource "aws_s3control_access_grants_instance" "shopfast_instance" {}
 
 resource "aws_iam_role" "shopfast_location_role" {
   assume_role_policy = jsonencode({
