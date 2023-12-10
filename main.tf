@@ -2,13 +2,56 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
-resource "aws_s3_bucket" "example" {}
+resource "aws_s3_bucket" "shopfast_data" {}
 
-resource "aws_iam_user" "example" {
-  name  = "example"
+resource "aws_s3_bucket" "shopfast_internal" {}
+
+resource "aws_s3_object" "shopfast_data_products" {
+  bucket = aws_s3_bucket.shopfast_data.bucket
+  key    = "products/"
 }
 
-data "aws_iam_policy_document" "example_policy" {
+resource "aws_s3_object" "shopfast_data_feedback" {
+  bucket = aws_s3_bucket.shopfast_data.bucket
+  key    = "feedback/"
+}
+
+resource "aws_s3_object" "shopfast_data_transactions" {
+  bucket = aws_s3_bucket.shopfast_data.bucket
+  key    = "transactions/"
+}
+
+resource "aws_s3_object" "shopfast_data_users" {
+  bucket = aws_s3_bucket.shopfast_data.bucket
+  key    = "users/"
+}
+
+resource "aws_s3_object" "shopfast_data_users_list" {
+  bucket = aws_s3_bucket.shopfast_data.bucket
+  key    = "users/user_list"
+  source = "user_list"
+}
+
+resource "aws_s3_object" "shopfast_internal_leads" {
+  bucket = aws_s3_bucket.shopfast_internal.bucket
+  key    = "leads/"
+}
+
+resource "aws_s3_object" "shopfast_internal_employee_records" {
+  bucket = aws_s3_bucket.shopfast_internal.bucket
+  key    = "employee-records/"
+}
+
+resource "aws_s3_object" "shopfast_internal_benefits" {
+  bucket = aws_s3_bucket.shopfast_internal.bucket
+  key    = "benefits/"
+}
+
+locals {
+  departments = ["Marketing", "Sales", "CustomerSupport", "ProductManagement", "HumanResources"]
+}
+
+data "aws_iam_policy_document" "department_policy" {
   statement {
     actions = [
       "s3:ListAccessGrants",
@@ -22,33 +65,40 @@ data "aws_iam_policy_document" "example_policy" {
   }
 }
 
-resource "aws_iam_user_policy" "example" {
-  name   = "example"
-  user   = aws_iam_user.example.name
-  policy = data.aws_iam_policy_document.example_policy.json
+resource "aws_iam_policy" "department_policy" {
+  name   = "ShopFast-Access-Grant-Policy"
+  policy = data.aws_iam_policy_document.department_policy.json
 }
 
-resource "aws_s3_object" "prefixA" {
-  bucket = aws_s3_bucket.example.bucket
-  key    = "prefixA/"
+resource "aws_iam_role" "department_roles" {
+  for_each = toset(local.departments)
+
+  name = "ShopFast-${each.value}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = ["sts:AssumeRole"]
+        Effect    = "Allow"
+        Principal = { "AWS" = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
+      }
+    ]
+  })
 }
 
-resource "aws_s3_object" "prefixB" {
-  bucket = aws_s3_bucket.example.bucket
-  key    = "prefixB/"
+resource "aws_iam_role_policy_attachment" "department_policy_attachment" {
+  for_each = toset(local.departments)
+
+  role       = aws_iam_role.department_roles[each.value].name
+  policy_arn = aws_iam_policy.department_policy.arn
 }
 
-resource "aws_s3_object" "prefixB_hello_world" {
-  bucket = aws_s3_bucket.example.bucket
-  key    = "prefixB/hello_world"
-  source = "hello_world"
+resource "aws_s3control_access_grants_instance" "shopfast_instance" {
+  identity_center_arn = "arn:aws:sso:::instance/${var.aws_sso_instance_id}"
 }
 
-resource "aws_s3control_access_grants_instance" "example" {
-  identity_center_arn = "arn:aws:sso:::instance/ssoins-xxxxxxxxxxxxxx"
-}
-
-resource "aws_iam_role" "example" {
+resource "aws_iam_role" "shopfast_location_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -105,9 +155,9 @@ resource "aws_iam_role" "example" {
           }
         },
         {
-          Sid    = "BucketLevelReadPermissions"
-          Effect = "Allow"
-          Action = ["s3:ListBucket"]
+          Sid      = "BucketLevelReadPermissions"
+          Effect   = "Allow"
+          Action   = ["s3:ListBucket"]
           Resource = ["arn:aws:s3:::*"]
           Condition = {
             StringEquals = { "aws:ResourceAccount" = data.aws_caller_identity.current.account_id }
@@ -121,23 +171,43 @@ resource "aws_iam_role" "example" {
   }
 }
 
-resource "aws_s3control_access_grants_location" "example" {
-  depends_on = [aws_s3control_access_grants_instance.example]
+resource "aws_s3control_access_grants_location" "shopfast_data_location" {
+  depends_on = [aws_s3control_access_grants_instance.shopfast_instance]
 
-  iam_role_arn   = aws_iam_role.example.arn
-  location_scope = "s3://${aws_s3_bucket.example.bucket}"
+  iam_role_arn   = aws_iam_role.shopfast_location_role.arn
+  location_scope = "s3://${aws_s3_bucket.shopfast_data.bucket}"
 }
 
-resource "aws_s3control_access_grant" "example" {
-  access_grants_location_id = aws_s3control_access_grants_location.example.access_grants_location_id
-  permission                = "READ"
+resource "aws_s3control_access_grants_location" "shopfast_internal_location" {
+  depends_on = [aws_s3control_access_grants_instance.shopfast_instance]
+
+  iam_role_arn   = aws_iam_role.shopfast_location_role.arn
+  location_scope = "s3://${aws_s3_bucket.shopfast_internal.bucket}"
+}
+
+resource "aws_s3control_access_grant" "department_grants" {
+  for_each = {
+    "Marketing-products"              = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "products*", permission = "READ" }
+    "Marketing-feedback"              = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "feedback*", permission = "READ" }
+    "Sales-transactions"              = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "transactions*", permission = "READWRITE" }
+    "Sales-users"                     = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "users*", permission = "READWRITE" }
+    "CustomerSupport-users"           = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "users*", permission = "READ" }
+    "CustomerSupport-feedback"        = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "feedback*", permission = "READWRITE" }
+    "ProductManagement-products"      = { location = aws_s3control_access_grants_location.shopfast_data_location.access_grants_location_id, prefix = "products*", permission = "READWRITE" }
+    "ProductManagement-leads"         = { location = aws_s3control_access_grants_location.shopfast_internal_location.access_grants_location_id, prefix = "leads*", permission = "READ" }
+    "HumanResources-employee-records" = { location = aws_s3control_access_grants_location.shopfast_internal_location.access_grants_location_id, prefix = "employee-records*", permission = "READWRITE" }
+    "HumanResources-benefits"         = { location = aws_s3control_access_grants_location.shopfast_internal_location.access_grants_location_id, prefix = "benefits*", permission = "READWRITE" }
+  }
+
+  access_grants_location_id = each.value.location
+  permission                = each.value.permission
 
   access_grants_location_configuration {
-    s3_sub_prefix = "prefixB*"
+    s3_sub_prefix = each.value.prefix
   }
 
   grantee {
     grantee_type       = "IAM"
-    grantee_identifier = aws_iam_user.example.arn
+    grantee_identifier = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ShopFast-${split("-", each.key)[0]}"
   }
 }
