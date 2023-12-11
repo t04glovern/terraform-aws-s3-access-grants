@@ -17,8 +17,6 @@
 
 ## Deploy Terraform
 
-Update [backend.tf](./backend.tf) with your terraform backend configuration
-
 Run the following commands to deploy the terraform stack
 
 ```bash
@@ -34,7 +32,9 @@ terraform apply
 export AWS_DEFAULT_REGION=ap-southeast-2
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export AWS_ROLE_TO_ASSUME=arn:aws:iam::$AWS_ACCOUNT_ID:role/ShopFast-CustomerSupport
+export SHOPFAST_DATA_BUCKET=$(terraform output -raw shopfast_data_bucket)
 
+# Sets the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables
 CREDENTIALS_JSON=$(aws sts assume-role --role-arn $AWS_ROLE_TO_ASSUME --role-session-name ShopFastRole)
 export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.AccessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SecretAccessKey')
@@ -42,7 +42,7 @@ export AWS_SESSION_TOKEN=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SessionT
 
 aws s3control get-data-access \
     --account-id $AWS_ACCOUNT_ID \
-    --target s3://terraform-20231210044558274900000002/users* \
+    --target s3://$SHOPFAST_DATA_BUCKET/users* \
     --permission READWRITE \
     --privilege Default
 
@@ -54,8 +54,10 @@ aws s3control get-data-access \
 ```bash
 export AWS_DEFAULT_REGION=ap-southeast-2
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export AWS_ROLE_TO_ASSUME=arn:aws:iam::$AWS_ACCOUNT_ID:role/ShopFast-ProductManagement
+export AWS_ROLE_TO_ASSUME=arn:aws:iam::$AWS_ACCOUNT_ID:role/ShopFast-CustomerSupport
+export SHOPFAST_DATA_BUCKET=$(terraform output -raw shopfast_data_bucket)
 
+# Sets the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables
 CREDENTIALS_JSON=$(aws sts assume-role --role-arn $AWS_ROLE_TO_ASSUME --role-session-name ShopFastRole)
 export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.AccessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SecretAccessKey')
@@ -63,7 +65,7 @@ export AWS_SESSION_TOKEN=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SessionT
 
 CREDENTIALS_JSON=$(aws s3control get-data-access \
     --account-id $AWS_ACCOUNT_ID \
-    --target s3://terraform-20231210044558274900000002/users* \
+    --target s3://$SHOPFAST_DATA_BUCKET/users* \
     --permission READ \
     --privilege Default)
 # {
