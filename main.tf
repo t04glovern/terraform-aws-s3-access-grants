@@ -60,7 +60,7 @@ data "aws_iam_policy_document" "department_policy" {
     ]
 
     resources = [
-      "arn:aws:s3:ap-southeast-2:${data.aws_caller_identity.current.account_id}:access-grants/default",
+      "arn:aws:s3:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:access-grants/default",
     ]
   }
 }
@@ -94,7 +94,9 @@ resource "aws_iam_role_policy_attachment" "department_policy_attachment" {
   policy_arn = aws_iam_policy.department_policy.arn
 }
 
-resource "aws_s3control_access_grants_instance" "shopfast_instance" {}
+resource "aws_s3control_access_grants_instance" "shopfast_instance" {
+  identity_center_arn = var.sso_instance_id != "" ? "arn:aws:sso:::instance/${var.sso_instance_id}" : null
+}
 
 resource "aws_iam_role" "shopfast_location_role" {
   assume_role_policy = jsonencode({
@@ -102,7 +104,7 @@ resource "aws_iam_role" "shopfast_location_role" {
     Statement = [
       {
         Sid       = "Stmt1234567891011"
-        Action    = ["sts:AssumeRole", "sts:SetSourceIdentity"]
+        Action    = ["sts:AssumeRole", "sts:SetSourceIdentity", "sts:SetContext"]
         Effect    = "Allow"
         Principal = { Service = "access-grants.s3.amazonaws.com" }
       }
@@ -205,7 +207,7 @@ resource "aws_s3control_access_grant" "department_grants" {
   }
 
   grantee {
-    grantee_type       = "IAM"
-    grantee_identifier = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ShopFast-${split("-", each.key)[0]}"
+    grantee_type       = var.sso_grantee.type
+    grantee_identifier = var.sso_grantee.type != "IAM" ? var.sso_grantee.id : null
   }
 }
