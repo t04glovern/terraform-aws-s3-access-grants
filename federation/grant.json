@@ -4,7 +4,7 @@
           {
               "TrustedTokenIssuerArn": "arn:aws:sso::012345678912:trustedTokenIssuer/ssoins-XXXXXXXXXXXXXX/tti-YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
               "AuthorizedAudiences": [
-                  "AUDIENCERANDOM3TRINGG03SH3RE"
+                  "8943e428-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               ]
           }
       ]

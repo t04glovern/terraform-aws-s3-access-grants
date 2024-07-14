@@ -134,7 +134,7 @@ export AWS_IIC_TRUSTED_ISSUER_ID=$(aws sso-admin create-trusted-token-issuer \
     --instance-arn "arn:aws:sso:::instance/$AWS_IIC_INSTANCE_ID" \
     --name "S3AccessGrantsIssuer" \
     --trusted-token-issuer-type "OIDC_JWT" \
-    --trusted-token-issuer-configuration '{"OidcJwtConfiguration":{"IssuerUrl":"https://4m3ffttgmhckfc7kj3r6ytwu3a0dtomm.lambda-url.ap-southeast-2.on.aws","JwksRetrievalOption":"OPEN_ID_DISCOVERY","ClaimAttributePath":"email","IdentityStoreAttributePath":"emails.value"}}' \
+    --trusted-token-issuer-configuration '{"OidcJwtConfiguration":{"IssuerUrl":"https://oauth.id.jumpcloud.com/","JwksRetrievalOption":"OPEN_ID_DISCOVERY","ClaimAttributePath":"email","IdentityStoreAttributePath":"emails.value"}}' \
     --query TrustedTokenIssuerArn \
     --output text)
 ```
