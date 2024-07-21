@@ -85,8 +85,8 @@ export AWS_SESSION_TOKEN=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SessionT
 $ aws sts get-caller-identity
 # {
 #     "UserId": "ASIAZZZZZZZZZZZZZZZZ:access-grants-ade86c3c-4781-4c65-8beb-4639bb72f5e6",
-#     "Account": "012345678912",
-#     "Arn": "arn:aws:sts::012345678912:assumed-role/terraform-20231210044558274900000002/access-grants-ade86c3c-4781-4c65-8beb-4639bb72f5e6"
+#     "Account": "111111111111",
+#     "Arn": "arn:aws:sts::111111111111:assumed-role/terraform-20231210044558274900000002/access-grants-ade86c3c-4781-4c65-8beb-4639bb72f5e6"
 # }
 ```
 
@@ -178,9 +178,19 @@ aws sso-admin put-application-access-scope \
 Create an application authentication method for the application
 
 ```bash
-export AWS_S3_ACCESS_GRANT_ACCOUNT_ID='012345678912'
+export AWS_S3_ACCESS_GRANT_ACCOUNT_ID="222222222222"
+
+AUTHENTICATION_METHOD_JSON=$(jq \
+    --arg app_arn "$AWS_IIC_APPLICATION_ARN" \
+    --arg role_arn "$AWS_ROLE_TO_ASSUME" \
+    --arg aws_id "$AWS_S3_ACCESS_GRANT_ACCOUNT_ID" \
+        '.Iam.ActorPolicy.Statement[0].Principal.AWS = $aws_id |
+        .Iam.ActorPolicy.Statement[0].Resource = $app_arn |
+        .Iam.ActorPolicy.Statement[0].Condition.ArnEquals["aws:PrincipalArn"] = $role_arn' \
+        federation/authentication-method.json)
+
 aws sso-admin put-application-authentication-method \
    --application-arn $AWS_IIC_APPLICATION_ARN \
    --authentication-method-type IAM \
-   --authentication-method "$(printf '%s' "$(jq '.Iam.ActorPolicy.Statement[0].Principal.AWS = "arn:aws:iam::'${AWS_S3_ACCESS_GRANT_ACCOUNT_ID}':root"' federation/authentication-method.json)")"
+   --authentication-method "$AUTHENTICATION_METHOD_JSON"
 ```
