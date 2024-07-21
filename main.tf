@@ -208,6 +208,6 @@ resource "aws_s3control_access_grant" "department_grants" {
 
   grantee {
     grantee_type       = var.sso_grantee.type
-    grantee_identifier = var.sso_grantee.type != "IAM" ? var.sso_grantee.id : null
+    grantee_identifier = var.sso_grantee.type != "IAM" ? var.sso_grantee.id : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ShopFast-${split("-", each.key)[0]}"
   }
 }
