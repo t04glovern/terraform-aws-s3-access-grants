@@ -18,7 +18,7 @@ variable "sso_grantee" {
   }
 
   validation {
-    condition     = var.sso_grantee.type != "IAM" || length(var.sso_grantee.id) > 0
+    condition     = var.sso_grantee.type != "IAM" && length(var.sso_grantee.id) > 0 || var.sso_grantee.type == "IAM" && length(var.sso_grantee.id) == 0
     error_message = "The value of sso_grantee.id must be set when sso_grantee.type is DIRECTORY_USER or DIRECTORY_GROUP."
   }
 }
