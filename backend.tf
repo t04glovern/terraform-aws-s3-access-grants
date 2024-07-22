@@ -1,11 +1,11 @@
 terraform {
-  backend "s3" {
-    bucket         = "tf-state-bucket-536829251200-ap-southeast-2"
-    key            = "terraform-aws-s3-access-grants/terraform.tfstate"
-    region         = "ap-southeast-2"
-    dynamodb_table = "tf-state-table-536829251200"
-    encrypt        = true
-  }
+  # backend "s3" {
+  #   bucket         = "tf-state-bucket-111111111111-ap-southeast-2"
+  #   key            = "terraform-aws-s3-access-grants/terraform.tfstate"
+  #   region         = "ap-southeast-2"
+  #   dynamodb_table = "tf-state-table-111111111111 "
+  #   encrypt        = true
+  # }
 
   required_providers {
     aws = {
