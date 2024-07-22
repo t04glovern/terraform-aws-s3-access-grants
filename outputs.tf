@@ -7,9 +7,9 @@ output "shopfast_internal_bucket" {
 }
 
 output "identity_bearer_iam_role_arn" {
-  value = aws_iam_role.identity_bearer_iam_role.arn
+  value = length(aws_iam_role.identity_bearer_iam_role) > 0 ? aws_iam_role.identity_bearer_iam_role[0].arn : ""
 }
 
 output "client_application_iam_role_arn" {
-  value = aws_iam_role.client_application_iam_role.arn
+  value = length(aws_iam_role.client_application_iam_role) > 0 ? aws_iam_role.client_application_iam_role[0].arn : ""
 }

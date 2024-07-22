@@ -3,7 +3,7 @@ terraform {
   #   bucket         = "tf-state-bucket-111111111111-ap-southeast-2"
   #   key            = "terraform-aws-s3-access-grants/terraform.tfstate"
   #   region         = "ap-southeast-2"
-  #   dynamodb_table = "tf-state-table-111111111111 "
+  #   dynamodb_table = "tf-state-table-111111111111"
   #   encrypt        = true
   # }
 
