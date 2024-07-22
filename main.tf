@@ -211,3 +211,78 @@ resource "aws_s3control_access_grant" "department_grants" {
     grantee_identifier = var.sso_grantee.type != "IAM" ? var.sso_grantee.id : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/ShopFast-${split("-", each.key)[0]}"
   }
 }
+
+resource "aws_iam_role" "identity_bearer_iam_role" {
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.client_application_iam_role.arn
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:SetContext"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "allow_s3_data_access" {
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetDataAccess"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "identity_bearer_iam_policy_attachment" {
+  role       = aws_iam_role.identity_bearer_iam_role.name
+  policy_arn = aws_iam_policy.allow_s3_data_access.arn
+}
+
+resource "aws_iam_role" "client_application_iam_role" {
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = data.aws_caller_identity.current.account_id
+        }
+        Action = [
+          "sts:AssumeRole"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "allow_create_token_with_iam" {
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sso-oauth:CreateTokenWithIAM"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "client_application_iam_policy_attachment" {
+  role       = aws_iam_role.client_application_iam_role.name
+  policy_arn = aws_iam_policy.allow_create_token_with_iam.arn
+}

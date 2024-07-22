@@ -60,7 +60,7 @@ def get_s3_data():
     logger.debug(id_token)
     sso_oidc_client = boto3.client('sso-oidc', region_name=AWS_REGION)
     aws_token = sso_oidc_client.create_token_with_iam(
-        clientId=os.getenv('AWS_CLIENT_ID'),
+        clientId=os.getenv('AWS_IIC_APPLICATION_ARN'),
         grantType='urn:ietf:params:oauth:grant-type:jwt-bearer',
         assertion=id_token
     )
@@ -71,7 +71,7 @@ def get_s3_data():
     # Step 2: 
     sts_client = boto3.client('sts', region_name=AWS_REGION)
     sts_response = sts_client.assume_role(
-        RoleArn=os.getenv('AWS_ROLE_ARN'),
+        RoleArn=os.getenv('AWS_S3_ACCESS_GRANT_ROLE_ARN'),
         RoleSessionName='my-role-session-with-identity-context',
         ProvidedContexts=[
             {
@@ -91,7 +91,7 @@ def get_s3_data():
         region_name=AWS_REGION
     )
     data_access_response = s3_access_grants_client.get_data_access(
-        AccountId=os.getenv('AWS_ACCOUNT_ID'),
+        AccountId=os.getenv('AWS_S3_ACCESS_GRANT_ACCOUNT_ID'),
         Target=f's3://{os.getenv("AWS_TARGET_BUCKET_NAME")}/users*',
         Permission='READ'
     )
