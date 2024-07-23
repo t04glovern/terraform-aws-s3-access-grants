@@ -1,0 +1,12 @@
+{
+    "JwtBearer": {
+        "AuthorizedTokenIssuers": [
+            {
+                "TrustedTokenIssuerArn": "arn:aws:sso::222222222222:trustedTokenIssuer/ssoins-XXXXXXXXXXXXXX/tti-YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY",
+                "AuthorizedAudiences": [
+                    "8943e428-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                ]
+            }
+        ]
+    }
+}

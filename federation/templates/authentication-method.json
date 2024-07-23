@@ -1,0 +1,22 @@
+{
+    "Iam": {
+        "ActorPolicy": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::111111111111:root"
+                    },
+                    "Action": "sso-oauth:CreateTokenWithIAM",
+                    "Resource": "arn:aws:sso::222222222222:application/ssoins-XXXXXXXXXXXXX/apl-YYYYYYYYYY",
+                    "Condition": {
+                        "ArnEquals": {
+                            "aws:PrincipalArn": "arn:aws:iam::111111111111:role/EXAMPLE"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
