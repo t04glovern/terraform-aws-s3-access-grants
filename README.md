@@ -119,9 +119,14 @@ sso_grantee = {
 }
 ```
 
-Deploying these changes will link AWS S3 Access Grants to IAM Identity Center (IIC).
+Deploying these changes will link AWS S3 Access Grants to IAM Identity Center (IIC)
 
 ```bash
+# Set AWS credentials for the S3 Access Grant account (111111111111 in the example)
+export AWS_ACCESS_KEY_ID=XXXXXXXXXXXX
+export AWS_SECRET_ACCESS_KEY=YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+export AWS_SESSION_TOKEN=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
 terraform init
 terraform apply
 ```
@@ -130,44 +135,29 @@ Export some variables while you are still authenticated with the S3 Access grant
 
 ```bash
 export SHOPFAST_DATA_BUCKET=$(terraform output -raw shopfast_data_bucket)
-export AWS_S3_ACCESS_GRANT_ACCOUNT_ID="111111111111"
+export AWS_S3_ACCESS_GRANT_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export AWS_S3_ACCESS_GRANT_ROLE_ARN=$(terraform output -raw identity_bearer_iam_role_arn)
 export AWS_S3_ACCESS_GRANT_CLIENT_APP_ROLE_ARN=$(terraform output -raw client_application_iam_role_arn)
 ```
 
-***!!!*** The following steps must be done while authenticated with the AWS IAM Identity Center (IIC) account. ***!!!*** Ensure that the exports from the previous step is carried over.
-
-Create an AWS IAM Identity Center (IIC) trusted token issuer
+***!!!*** The following steps must be done while authenticated with the AWS IAM Identity Center (IIC) account. ***!!!***
 
 ```bash
-export AWS_DEFAULT_REGION=ap-southeast-2
-export AWS_IIC_INSTANCE_ID=ssoins-XXXXXXXXXXXXX
-export AWS_IIC_TRUSTED_ISSUER_ID=$(aws sso-admin create-trusted-token-issuer \
-    --instance-arn "arn:aws:sso:::instance/$AWS_IIC_INSTANCE_ID" \
-    --name "S3AccessGrantsIssuer" \
-    --trusted-token-issuer-type "OIDC_JWT" \
-    --trusted-token-issuer-configuration '{"OidcJwtConfiguration":{"IssuerUrl":"https://oauth.id.jumpcloud.com/","JwksRetrievalOption":"OPEN_ID_DISCOVERY","ClaimAttributePath":"email","IdentityStoreAttributePath":"emails.value"}}' \
-    --query TrustedTokenIssuerArn \
-    --output text)
+# Set AWS credentials for the AWS IAM Identity Center (IIC) account (222222222222 in the example)
+export AWS_ACCESS_KEY_ID=XXXXXXXXXXXX
+export AWS_SECRET_ACCESS_KEY=YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+export AWS_SESSION_TOKEN=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+cd federation
+terraform init
+terraform apply
 ```
 
-Create a custom application and store the Application ARN in a variable
+There are a few steps that do not have terraform resources, so they must be done manually - Start by exporting some variables
 
 ```bash
-export AWS_IIC_APPLICATION_ARN=$(aws sso-admin create-application \
-    --instance-arn "arn:aws:sso:::instance/$AWS_IIC_INSTANCE_ID" \
-    --application-provider-arn "arn:aws:sso::aws:applicationProvider/custom" \
-    --name S3AccessGrants \
-    --query ApplicationArn \
-    --output text)
-```
-
-Create an application assignment for the application
-
-```bash
-aws sso-admin put-application-assignment-configuration \
-    --application-arn $AWS_IIC_APPLICATION_ARN \
-    --no-assignment-required
+export AWS_IIC_APPLICATION_ARN=$(terraform output -raw s3_access_grants_application_arn)
+export AWS_IIC_TRUSTED_ISSUER_ARN=$(terraform output -raw s3_access_grants_trusted_token_issuer_arn)
 ```
 
 Create an application grant for the application
@@ -175,45 +165,29 @@ Create an application grant for the application
 ```bash
 export AWS_IIC_APPLICATION_AUTHORIZED_AUDIENCE="8943e428-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-GRANT_JSON=$(jq --arg issuer_arn "$AWS_IIC_TRUSTED_ISSUER_ID" \
+GRANT_JSON=$(jq --arg issuer_arn "$AWS_IIC_TRUSTED_ISSUER_ARN" \
     --arg audience "$AWS_IIC_APPLICATION_AUTHORIZED_AUDIENCE" \
         '.JwtBearer.AuthorizedTokenIssuers[0].TrustedTokenIssuerArn = $issuer_arn |
         .JwtBearer.AuthorizedTokenIssuers[0].AuthorizedAudiences[0] = $audience' \
-        federation/grant.json)
+        templates/grant.json)
 
 aws sso-admin put-application-grant \
     --application-arn $AWS_IIC_APPLICATION_ARN \
     --grant-type "urn:ietf:params:oauth:grant-type:jwt-bearer" \
     --grant "$GRANT_JSON"
-
-# List to verify
-aws sso-admin list-application-grants \
-    --application-arn $AWS_IIC_APPLICATION_ARN
-
-# Incase of error, delete with the following
-aws sso-admin delete-application-grant \
-    --application-arn $AWS_IIC_APPLICATION_ARN \
-    --grant-type "urn:ietf:params:oauth:grant-type:jwt-bearer"
-```
-
-Create an application access scope for the application
-
-```bash
-aws sso-admin put-application-access-scope \
-    --application-arn $AWS_IIC_APPLICATION_ARN \
-    --scope "s3:access_grants:read_write"
 ```
 
 Create an application authentication method for the application
 
 ```bash
-AUTHENTICATION_METHOD_JSON=$(jq --arg app_arn "$AWS_IIC_APPLICATION_ARN" \
+AUTHENTICATION_METHOD_JSON=$(jq \
+    --arg app_arn "$AWS_IIC_APPLICATION_ARN" \
     --arg role_arn "$AWS_S3_ACCESS_GRANT_CLIENT_APP_ROLE_ARN" \
     --arg aws_id "$AWS_S3_ACCESS_GRANT_ACCOUNT_ID" \
         '.Iam.ActorPolicy.Statement[0].Principal.AWS = $aws_id |
         .Iam.ActorPolicy.Statement[0].Resource = $app_arn |
         .Iam.ActorPolicy.Statement[0].Condition.ArnEquals["aws:PrincipalArn"] = $role_arn' \
-        federation/authentication-method.json)
+        templates/authentication-method.json)
 
 aws sso-admin put-application-authentication-method \
    --application-arn $AWS_IIC_APPLICATION_ARN \
@@ -224,7 +198,7 @@ aws sso-admin put-application-authentication-method \
 Generate the `.env` file in the `federation/web` folder that will be used by the client application
 
 ```bash
-cat <<EOF > federation/web/.env
+cat <<EOF > web/.env
 FLASK_SECRET_KEY=Your_Secret_Key
 AWS_IIC_APPLICATION_ARN=${AWS_IIC_APPLICATION_ARN}
 AWS_S3_ACCESS_GRANT_ROLE_ARN=${AWS_S3_ACCESS_GRANT_ROLE_ARN}
@@ -246,21 +220,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a copy of `client_secrets.json.example` and rename it to `client_secrets.json`. Update the `client_id` and `client_secret` with values from the your IDP (in our case, JumpCloud).
+Create a copy of `client_secrets.json.example` and rename it to `client_secrets.json`. Update the `client_id` and `client_secret` with values from your IDP (in our case, JumpCloud).
 
 ```bash
 cp client_secrets.json.example client_secrets.json
 ```
 
-Set AWS credentials for the S3 Access Grant account (used for terraform deploy) before running the client application
+Setup credentials then run the client application
 
 ```bash
+# Set AWS credentials for the S3 Access Grant account (111111111111 in the example)
 export AWS_ACCESS_KEY_ID=XXXXXXXXXXXX
 export AWS_SECRET_ACCESS_KEY=YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 export AWS_SESSION_TOKEN=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 
 # Assume the S3 Access Grant role
-# Sets the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_SESSION_TOKEN environment variables
 CREDENTIALS_JSON=$(aws sts assume-role --role-arn $AWS_S3_ACCESS_GRANT_CLIENT_APP_ROLE_ARN --role-session-name s3-access-grants)
 export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.AccessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS_JSON | jq -r '.Credentials.SecretAccessKey')
@@ -271,3 +245,31 @@ python3 jumpcloud.py
 ```
 
 Login at [http://localhost:5000/login](http://localhost:5000/login), then navigate to [http://localhost:5000/get-s3-data](http://localhost:5000/get-s3-data) to view the data.
+
+## Cleanup
+
+Remove AWS IAM Identity Center configuration
+
+```bash
+# Set AWS credentials for the AWS IAM Identity Center (IIC) account (222222222222 in the example)
+export AWS_ACCESS_KEY_ID=XXXXXXXXXXXX
+export AWS_SECRET_ACCESS_KEY=YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+export AWS_SESSION_TOKEN=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+cd federation
+terraform init
+terraform destroy
+```
+
+Remove AWS S3 Access Grants configuration
+
+```bash
+# Set AWS credentials for the S3 Access Grant account (111111111111 in the example)
+export AWS_ACCESS_KEY_ID=XXXXXXXXXXXX
+export AWS_SECRET_ACCESS_KEY=YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+export AWS_SESSION_TOKEN=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
+
+cd ..
+terraform init
+terraform destroy
+```
