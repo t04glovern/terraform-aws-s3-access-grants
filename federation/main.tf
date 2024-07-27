@@ -9,7 +9,7 @@ resource "aws_ssoadmin_trusted_token_issuer" "jumpcloud_trusted_issuer" {
     oidc_jwt_configuration {
       claim_attribute_path          = "email"
       identity_store_attribute_path = "emails.value"
-      issuer_url                    = "https://oauth.id.jumpcloud.com/"
+      issuer_url                    = var.issuer_url
       jwks_retrieval_option         = "OPEN_ID_DISCOVERY"
     }
   }

@@ -30,3 +30,4 @@ terraform.rc
 
 # Custom
 user_list_downloaded
+.env

@@ -134,10 +134,10 @@ terraform apply
 Export some variables while you are still authenticated with the S3 Access grant account (used for terraform deploy)
 
 ```bash
-export SHOPFAST_DATA_BUCKET=$(terraform output -raw shopfast_data_bucket)
-export AWS_S3_ACCESS_GRANT_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-export AWS_S3_ACCESS_GRANT_ROLE_ARN=$(terraform output -raw identity_bearer_iam_role_arn)
-export AWS_S3_ACCESS_GRANT_CLIENT_APP_ROLE_ARN=$(terraform output -raw client_application_iam_role_arn)
+echo "export SHOPFAST_DATA_BUCKET=$(terraform output -raw shopfast_data_bucket)" >> federation/.env
+echo "export AWS_S3_ACCESS_GRANT_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> federation/.env
+echo "export AWS_S3_ACCESS_GRANT_ROLE_ARN=$(terraform output -raw identity_bearer_iam_role_arn)" >> federation/.env
+echo "export AWS_S3_ACCESS_GRANT_CLIENT_APP_ROLE_ARN=$(terraform output -raw client_application_iam_role_arn)" >> federation/.env
 ```
 
 ***!!!*** The following steps must be done while authenticated with the AWS IAM Identity Center (IIC) account. ***!!!***
@@ -156,8 +156,14 @@ terraform apply
 There are a few steps that do not have terraform resources, so they must be done manually - Start by exporting some variables
 
 ```bash
-export AWS_IIC_APPLICATION_ARN=$(terraform output -raw s3_access_grants_application_arn)
-export AWS_IIC_TRUSTED_ISSUER_ARN=$(terraform output -raw s3_access_grants_trusted_token_issuer_arn)
+echo "export AWS_IIC_APPLICATION_ARN=$(terraform output -raw s3_access_grants_application_arn)" >> .env
+echo "export AWS_IIC_TRUSTED_ISSUER_ARN=$(terraform output -raw s3_access_grants_trusted_token_issuer_arn)" >> .env
+```
+
+Then source all the variables into your shell environment.
+
+```bash
+source .env
 ```
 
 Create an application grant for the application
